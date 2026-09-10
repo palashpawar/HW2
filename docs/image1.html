@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>image1 &mdash; PCA image compression</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><div class="inner">
+<h1>PCA for Image Compression</h1>
+<p>SDS 365 &middot; Homework 2 &middot; Palash Pawar</p>
+<nav><a href="index.html">Method &amp; code</a><a href="image1.html" class="active">image 1</a><a href="image2.html">image 2</a><a href="image3.html">image 3</a><a href="image4.html">image 4</a><a href="mockup/index.html">App design</a><a href="shiny.html">Shiny app</a></nav>
+</div></header>
+<main>
+
+<h2>image 1 &mdash; noise with a single bright column</h2>
+<p class="lead">A 1000 &times; 100 matrix that looks like static: essentially independent noise everywhere,
+except for one narrow bright vertical stripe. That single stripe is column 78, whose mean value is
+19.9 while every other column averages about &minus;0.09.</p>
+<p><b>Size:</b> n = 1000 rows &times; p = 100 columns &nbsp;&middot;&nbsp;
+<b>&#8214;X&#8214;<sub>F</sub></b> = 705.5 &nbsp;&middot;&nbsp;
+<b>Variance in PC1:</b> 80.2% &nbsp;&middot;&nbsp;
+<b>k for 95% / 99% of variance:</b> 63 / 91</p>
+
+<h2>1. The original and its first ten approximations</h2>
+<div class="grid tall">
+<div class="tile first"><img src="assets/image1/orig.png" alt="image1 original"><b>original</b></div>
+<div class="tile"><img src="assets/image1/k01.png" alt="image1 rank 1"><b>k = 1</b></div>
+<div class="tile"><img src="assets/image1/k02.png" alt="image1 rank 2"><b>k = 2</b></div>
+<div class="tile"><img src="assets/image1/k03.png" alt="image1 rank 3"><b>k = 3</b></div>
+<div class="tile"><img src="assets/image1/k04.png" alt="image1 rank 4"><b>k = 4</b></div>
+<div class="tile"><img src="assets/image1/k05.png" alt="image1 rank 5"><b>k = 5</b></div>
+<div class="tile"><img src="assets/image1/k06.png" alt="image1 rank 6"><b>k = 6</b></div>
+<div class="tile"><img src="assets/image1/k07.png" alt="image1 rank 7"><b>k = 7</b></div>
+<div class="tile"><img src="assets/image1/k08.png" alt="image1 rank 8"><b>k = 8</b></div>
+<div class="tile"><img src="assets/image1/k09.png" alt="image1 rank 9"><b>k = 9</b></div>
+<div class="tile"><img src="assets/image1/k10.png" alt="image1 rank 10"><b>k = 10</b></div>
+</div>
+<p>Watch the stripe, not the background. The rank-1 approximation reproduces the bright
+column and renders everything else as flat grey &mdash; it has found the only real structure in the
+image. From k = 2 onward the extra components add back speckle that never resolves into anything,
+because there is nothing there to resolve.</p>
+<h3>Beyond k = 10</h3>
+<div class="grid tall">
+<div class="tile first"><img src="assets/image1/orig.png" alt="image1 original"><b>original</b></div>
+<div class="tile"><img src="assets/image1/k15.png" alt="image1 rank 15"><b>k = 15</b></div>
+<div class="tile"><img src="assets/image1/k20.png" alt="image1 rank 20"><b>k = 20</b></div>
+<div class="tile"><img src="assets/image1/k30.png" alt="image1 rank 30"><b>k = 30</b></div>
+<div class="tile"><img src="assets/image1/k50.png" alt="image1 rank 50"><b>k = 50</b></div>
+</div>
+<p class="lead" style="font-size:14px">Grayscale mapping: for every panel of this image, black and
+white are pinned to the 2nd and 98th percentile of the <i>original</i> matrix, so all panels are
+directly comparable and a few extreme pixels cannot wash the rest out.</p>
+
+<h2>2. Approximation error against k</h2>
+<figure>
+<img src="assets/image1/error.png" alt="image1 approximation error versus k">
+<figcaption>Left: the Frobenius error &#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub> for every
+possible rank k = 1, &hellip;, 100. Right: the same error relative to &#8214;X&#8214;<sub>F</sub>
+on a log scale, with the ranks that reach 95%, 99% and 99.9% of the total variance marked.</figcaption>
+</figure>
+<p>This is what an error curve looks like when a matrix is mostly noise. The first
+component removes about 20% of the total variation (the stripe), and after that the curve falls
+almost in a straight line: every remaining eigenvalue is roughly the same size (&asymp;1600), which
+is the signature of white noise. Reaching 95% of the variance takes k = 63 of the 100 possible
+components, and driving the relative error below 10% would take k &asymp; 95 &mdash; by which point
+you are storing more numbers than the original image contains (the break-even rank here is 91).</p>
+<table><thead><tr><th>k</th><th>&#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub></th><th>relative error</th><th>cumulative variance</th><th>numbers stored</th><th>vs. original</th></tr></thead><tbody>
+<tr class="mark"><td>1</td><td>313.96</td><td>44.50%</td><td>80.19%</td><td>1,100</td><td>1.1%</td></tr>
+<tr><td>2</td><td>311.28</td><td>44.12%</td><td>80.53%</td><td>2,200</td><td>2.2%</td></tr>
+<tr><td>3</td><td>308.62</td><td>43.75%</td><td>80.86%</td><td>3,300</td><td>3.3%</td></tr>
+<tr><td>4</td><td>306.00</td><td>43.38%</td><td>81.18%</td><td>4,400</td><td>4.4%</td></tr>
+<tr><td>5</td><td>303.39</td><td>43.01%</td><td>81.51%</td><td>5,500</td><td>5.5%</td></tr>
+<tr><td>6</td><td>300.76</td><td>42.63%</td><td>81.82%</td><td>6,600</td><td>6.6%</td></tr>
+<tr><td>7</td><td>298.16</td><td>42.26%</td><td>82.14%</td><td>7,700</td><td>7.7%</td></tr>
+<tr><td>8</td><td>295.63</td><td>41.91%</td><td>82.44%</td><td>8,800</td><td>8.8%</td></tr>
+<tr><td>9</td><td>293.09</td><td>41.55%</td><td>82.74%</td><td>9,900</td><td>9.9%</td></tr>
+<tr><td>10</td><td>290.56</td><td>41.19%</td><td>83.04%</td><td>11,000</td><td>11.0%</td></tr>
+<tr><td>15</td><td>278.03</td><td>39.41%</td><td>84.47%</td><td>16,500</td><td>16.5%</td></tr>
+<tr><td>20</td><td>265.64</td><td>37.65%</td><td>85.82%</td><td>22,000</td><td>22.0%</td></tr>
+<tr><td>30</td><td>240.98</td><td>34.16%</td><td>88.33%</td><td>33,000</td><td>33.0%</td></tr>
+<tr><td>50</td><td>191.41</td><td>27.13%</td><td>92.64%</td><td>55,000</td><td>55.0%</td></tr>
+<tr><td>100 (full)</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>100,000</td><td>100.0%</td></tr>
+</tbody></table>
+
+<h2>3. The first eigenvector and the first PC score</h2>
+<figure>
+<img src="assets/image1/pc1.png" alt="image1 first eigenvector and first PC score">
+<figcaption>Left: the loadings of the first eigenvector u<sub>1</sub>, one per pixel column. Right:
+the first PC score z<sub>1</sub>, one per pixel row. Together they form the rank-1 approximation
+X<sup>(1)</sup> = z<sub>1</sub>u<sub>1</sub>'. The sign of an eigenvector is arbitrary; here it is
+oriented so that the loadings are mostly positive.</figcaption>
+</figure>
+<h3>Interpretation</h3>
+<p><b>The first eigenvector is a spike.</b> u<sub>1</sub> puts a loading of 0.999 on
+column 78 and essentially zero (|loading| &lt; 0.008) on all 99 other columns. So the first principal
+component is not a blend of pixel columns at all &mdash; it <i>is</i> column 78. That one column
+carries so much more magnitude than the surrounding noise that it dominates X'X by itself, which is
+why PC1 accounts for 80.2% of the total variation.</p>
+<p><b>The first PC score is nearly constant.</b> z<sub>1</sub> sits at 19.95 &plusmn; 0.96 for all
+1000 rows, i.e. every row crosses the stripe at about the same brightness &mdash; the stripe is
+uniform from top to bottom. Its correlation with the row averages of X is only 0.06, confirming that
+this component says nothing about overall row brightness; it tracks one column and ignores the rest
+of the image.</p>
+
+<h2>4. How large does k need to be?</h2>
+<div class="verdict"><p style="margin:0"><b>k = 1.</b> The rank-1 approximation captures 100% of the structure that exists in
+this image, and it does so with 1,100 numbers instead of 100,000 (1.1% of the original). Every
+component after the first is spent encoding noise: k = 10 still leaves a 41% relative error, and no
+practical k makes the reconstruction look like the original, because reproducing noise pixel by
+pixel is not compression. If the goal is "recover the signal", k = 1 is the answer; if the goal is
+"recover the exact matrix", PCA has nothing useful to offer here and you should store all 100
+columns.</p></div>
+
+</main>
+<footer class="site"><div class="inner">
+Built in R (<code>eigen()</code> + <code>norm()</code>); figures generated by
+<code>analysis/generate_site_assets.R</code>. Source:
+<a href="https://github.com/palashpawar/HW2">github.com/palashpawar/HW2</a>.
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>image2 &mdash; PCA image compression</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><div class="inner">
+<h1>PCA for Image Compression</h1>
+<p>SDS 365 &middot; Homework 2 &middot; Palash Pawar</p>
+<nav><a href="index.html">Method &amp; code</a><a href="image1.html">image 1</a><a href="image2.html" class="active">image 2</a><a href="image3.html">image 3</a><a href="image4.html">image 4</a><a href="mockup/index.html">App design</a><a href="shiny.html">Shiny app</a></nav>
+</div></header>
+<main>
+
+<h2>image 2 &mdash; an exactly rank-1 image</h2>
+<p class="lead">Another 1000 &times; 100 matrix, this time a pattern of horizontal stripes with a smooth
+left-to-right gradient. It is the cleanest possible case for PCA: the matrix is, to numerical
+precision, exactly rank 1.</p>
+<p><b>Size:</b> n = 1000 rows &times; p = 100 columns &nbsp;&middot;&nbsp;
+<b>&#8214;X&#8214;<sub>F</sub></b> = 37,538.8 &nbsp;&middot;&nbsp;
+<b>Variance in PC1:</b> 100.0% &nbsp;&middot;&nbsp;
+<b>k for 95% / 99% of variance:</b> 1 / 1</p>
+
+<h2>1. The original and its first ten approximations</h2>
+<div class="grid tall">
+<div class="tile first"><img src="assets/image2/orig.png" alt="image2 original"><b>original</b></div>
+<div class="tile"><img src="assets/image2/k01.png" alt="image2 rank 1"><b>k = 1</b></div>
+<div class="tile"><img src="assets/image2/k02.png" alt="image2 rank 2"><b>k = 2</b></div>
+<div class="tile"><img src="assets/image2/k03.png" alt="image2 rank 3"><b>k = 3</b></div>
+<div class="tile"><img src="assets/image2/k04.png" alt="image2 rank 4"><b>k = 4</b></div>
+<div class="tile"><img src="assets/image2/k05.png" alt="image2 rank 5"><b>k = 5</b></div>
+<div class="tile"><img src="assets/image2/k06.png" alt="image2 rank 6"><b>k = 6</b></div>
+<div class="tile"><img src="assets/image2/k07.png" alt="image2 rank 7"><b>k = 7</b></div>
+<div class="tile"><img src="assets/image2/k08.png" alt="image2 rank 8"><b>k = 8</b></div>
+<div class="tile"><img src="assets/image2/k09.png" alt="image2 rank 9"><b>k = 9</b></div>
+<div class="tile"><img src="assets/image2/k10.png" alt="image2 rank 10"><b>k = 10</b></div>
+</div>
+<p>The original and the rank-1 approximation are indistinguishable, and they should
+be &mdash; the rank-1 error is 2.05 against an image norm of 37,539, a relative error of 0.006%. The
+remaining panels are not improvements so much as confirmations: by k = 2 the reconstruction is exact
+to machine precision.</p>
+<h3>Beyond k = 10</h3>
+<div class="grid tall">
+<div class="tile first"><img src="assets/image2/orig.png" alt="image2 original"><b>original</b></div>
+<div class="tile"><img src="assets/image2/k15.png" alt="image2 rank 15"><b>k = 15</b></div>
+<div class="tile"><img src="assets/image2/k20.png" alt="image2 rank 20"><b>k = 20</b></div>
+<div class="tile"><img src="assets/image2/k30.png" alt="image2 rank 30"><b>k = 30</b></div>
+<div class="tile"><img src="assets/image2/k50.png" alt="image2 rank 50"><b>k = 50</b></div>
+</div>
+<p class="lead" style="font-size:14px">Grayscale mapping: for every panel of this image, black and
+white are pinned to the 2nd and 98th percentile of the <i>original</i> matrix, so all panels are
+directly comparable and a few extreme pixels cannot wash the rest out.</p>
+
+<h2>2. Approximation error against k</h2>
+<figure>
+<img src="assets/image2/error.png" alt="image2 approximation error versus k">
+<figcaption>Left: the Frobenius error &#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub> for every
+possible rank k = 1, &hellip;, 100. Right: the same error relative to &#8214;X&#8214;<sub>F</sub>
+on a log scale, with the ranks that reach 95%, 99% and 99.9% of the total variance marked.</figcaption>
+</figure>
+<p>The eigenvalues explain everything: &lambda;<sub>1</sub> = 1.41 &times; 10<sup>9</sup>,
+&lambda;<sub>2</sub> = 4.2, and &lambda;<sub>3</sub> onwards are at the 10<sup>&minus;7</sup> level,
+which is numerical dust. The error therefore collapses at k = 1 and is exactly zero from k = 2, so
+the log-scale panel has only a single plottable point &mdash; that single point is the whole story
+for this image.</p>
+<table><thead><tr><th>k</th><th>&#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub></th><th>relative error</th><th>cumulative variance</th><th>numbers stored</th><th>vs. original</th></tr></thead><tbody>
+<tr class="mark"><td>1</td><td>2.05</td><td>0.01%</td><td>100.00%</td><td>1,100</td><td>1.1%</td></tr>
+<tr><td>2</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>2,200</td><td>2.2%</td></tr>
+<tr><td>3</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>3,300</td><td>3.3%</td></tr>
+<tr><td>4</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>4,400</td><td>4.4%</td></tr>
+<tr><td>5</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>5,500</td><td>5.5%</td></tr>
+<tr><td>6</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>6,600</td><td>6.6%</td></tr>
+<tr><td>7</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>7,700</td><td>7.7%</td></tr>
+<tr><td>8</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>8,800</td><td>8.8%</td></tr>
+<tr><td>9</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>9,900</td><td>9.9%</td></tr>
+<tr><td>10</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>11,000</td><td>11.0%</td></tr>
+<tr><td>15</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>16,500</td><td>16.5%</td></tr>
+<tr><td>20</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>22,000</td><td>22.0%</td></tr>
+<tr><td>30</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>33,000</td><td>33.0%</td></tr>
+<tr><td>50</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>55,000</td><td>55.0%</td></tr>
+<tr><td>100 (full)</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>100,000</td><td>100.0%</td></tr>
+</tbody></table>
+
+<h2>3. The first eigenvector and the first PC score</h2>
+<figure>
+<img src="assets/image2/pc1.png" alt="image2 first eigenvector and first PC score">
+<figcaption>Left: the loadings of the first eigenvector u<sub>1</sub>, one per pixel column. Right:
+the first PC score z<sub>1</sub>, one per pixel row. Together they form the rank-1 approximation
+X<sup>(1)</sup> = z<sub>1</sub>u<sub>1</sub>'. The sign of an eigenvector is arbitrary; here it is
+oriented so that the loadings are mostly positive.</figcaption>
+</figure>
+<h3>Interpretation</h3>
+<p><b>The first eigenvector is a straight line.</b> The loadings increase linearly with
+column index &mdash; the correlation between u<sub>1</sub> and the column number 1, 2, &hellip;, 100
+is 1.000 (loading 0.0006 at column 1 rising to 0.172 at column 100). So the dominant pattern is a
+left-to-right brightness ramp.</p>
+<p><b>The first PC score is the per-row amplitude of that ramp.</b> z<sub>1</sub> is perfectly
+correlated (1.000) with the row means of X and ranges from &minus;4,034 to +3,570. Reading the two
+plots together, the image is separable: X[i, j] &asymp; z<sub>1</sub>[i] &times; u<sub>1</sub>[j].
+Rows with a large positive score are bright ramps, rows with a large negative score are the same
+ramp inverted (bright on the left, dark on the right), and rows with a score near zero are flat
+grey. The horizontal striping you see is just z<sub>1</sub> jumping between those values from one row
+to the next.</p>
+
+<h2>4. How large does k need to be?</h2>
+<div class="verdict"><p style="margin:0"><b>k = 1.</b> A relative error of 0.006% is far below anything the eye can detect, and
+one component compresses 100,000 numbers into 1,100 &mdash; a 91&times; reduction. If you want the
+matrix back bit-for-bit, k = 2 achieves it exactly and still costs only 2,200 numbers. There is no
+reason to go past 2 for this image.</p></div>
+
+</main>
+<footer class="site"><div class="inner">
+Built in R (<code>eigen()</code> + <code>norm()</code>); figures generated by
+<code>analysis/generate_site_assets.R</code>. Source:
+<a href="https://github.com/palashpawar/HW2">github.com/palashpawar/HW2</a>.
+</div></footer>
+</body>
+</html>

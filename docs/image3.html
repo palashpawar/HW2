@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>image3 &mdash; PCA image compression</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><div class="inner">
+<h1>PCA for Image Compression</h1>
+<p>SDS 365 &middot; Homework 2 &middot; Palash Pawar</p>
+<nav><a href="index.html">Method &amp; code</a><a href="image1.html">image 1</a><a href="image2.html">image 2</a><a href="image3.html" class="active">image 3</a><a href="image4.html">image 4</a><a href="mockup/index.html">App design</a><a href="shiny.html">Shiny app</a></nav>
+</div></header>
+<main>
+
+<h2>image 3 &mdash; a photograph (376 &times; 345)</h2>
+<p class="lead">A grayscale photograph of a puppy lying on a bed, stored as a standardised matrix (mean 0,
+standard deviation 1). This is the case that behaves like real image compression: the information is
+spread across many components, and the interesting question is how few you can get away with.</p>
+<p><b>Size:</b> n = 376 rows &times; p = 345 columns &nbsp;&middot;&nbsp;
+<b>&#8214;X&#8214;<sub>F</sub></b> = 360.2 &nbsp;&middot;&nbsp;
+<b>Variance in PC1:</b> 61.8% &nbsp;&middot;&nbsp;
+<b>k for 95% / 99% of variance:</b> 10 / 33</p>
+
+<h2>1. The original and its first ten approximations</h2>
+<div class="grid wide">
+<div class="tile first"><img src="assets/image3/orig.png" alt="image3 original"><b>original</b></div>
+<div class="tile"><img src="assets/image3/k01.png" alt="image3 rank 1"><b>k = 1</b></div>
+<div class="tile"><img src="assets/image3/k02.png" alt="image3 rank 2"><b>k = 2</b></div>
+<div class="tile"><img src="assets/image3/k03.png" alt="image3 rank 3"><b>k = 3</b></div>
+<div class="tile"><img src="assets/image3/k04.png" alt="image3 rank 4"><b>k = 4</b></div>
+<div class="tile"><img src="assets/image3/k05.png" alt="image3 rank 5"><b>k = 5</b></div>
+<div class="tile"><img src="assets/image3/k06.png" alt="image3 rank 6"><b>k = 6</b></div>
+<div class="tile"><img src="assets/image3/k07.png" alt="image3 rank 7"><b>k = 7</b></div>
+<div class="tile"><img src="assets/image3/k08.png" alt="image3 rank 8"><b>k = 8</b></div>
+<div class="tile"><img src="assets/image3/k09.png" alt="image3 rank 9"><b>k = 9</b></div>
+<div class="tile"><img src="assets/image3/k10.png" alt="image3 rank 10"><b>k = 10</b></div>
+</div>
+<p>The progression is very legible. k = 1 gives only horizontal bands of brightness,
+k = 2&ndash;4 add the large dark mass of the puppy, and somewhere around k = 8&ndash;10 the shape
+becomes identifiable as an animal. Fine detail &mdash; the eye, the ear boundary, the fold of the
+sheet &mdash; arrives between k = 15 and k = 30, and the vertical streaking that betrays a low-rank
+reconstruction has largely disappeared by k = 50.</p>
+<h3>Beyond k = 10</h3>
+<div class="grid wide">
+<div class="tile first"><img src="assets/image3/orig.png" alt="image3 original"><b>original</b></div>
+<div class="tile"><img src="assets/image3/k15.png" alt="image3 rank 15"><b>k = 15</b></div>
+<div class="tile"><img src="assets/image3/k20.png" alt="image3 rank 20"><b>k = 20</b></div>
+<div class="tile"><img src="assets/image3/k30.png" alt="image3 rank 30"><b>k = 30</b></div>
+<div class="tile"><img src="assets/image3/k50.png" alt="image3 rank 50"><b>k = 50</b></div>
+</div>
+<p class="lead" style="font-size:14px">Grayscale mapping: for every panel of this image, black and
+white are pinned to the 2nd and 98th percentile of the <i>original</i> matrix, so all panels are
+directly comparable and a few extreme pixels cannot wash the rest out.</p>
+
+<h2>2. Approximation error against k</h2>
+<figure>
+<img src="assets/image3/error.png" alt="image3 approximation error versus k">
+<figcaption>Left: the Frobenius error &#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub> for every
+possible rank k = 1, &hellip;, 345. Right: the same error relative to &#8214;X&#8214;<sub>F</sub>
+on a log scale, with the ranks that reach 95%, 99% and 99.9% of the total variance marked.</figcaption>
+</figure>
+<p>A textbook decay: steep for the first ten components, then a long slow tail. 95% of
+the variance is reached at k = 10, 99% at k = 33, and 99.9% only at k = 137. Note how much slower
+the <i>visual</i> quality improves than the variance number suggests &mdash; at k = 10 the image is
+already at 95% of the variance but still visibly blurry, which is a good reminder that the Frobenius
+norm weights large bright regions much more heavily than the small high-contrast details the eye
+looks for.</p>
+<table><thead><tr><th>k</th><th>&#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub></th><th>relative error</th><th>cumulative variance</th><th>numbers stored</th><th>vs. original</th></tr></thead><tbody>
+<tr><td>1</td><td>222.67</td><td>61.82%</td><td>61.78%</td><td>721</td><td>0.6%</td></tr>
+<tr><td>2</td><td>176.02</td><td>48.87%</td><td>76.11%</td><td>1,442</td><td>1.1%</td></tr>
+<tr><td>3</td><td>150.01</td><td>41.65%</td><td>82.65%</td><td>2,163</td><td>1.7%</td></tr>
+<tr><td>4</td><td>130.59</td><td>36.26%</td><td>86.85%</td><td>2,884</td><td>2.2%</td></tr>
+<tr><td>5</td><td>119.30</td><td>33.12%</td><td>89.03%</td><td>3,605</td><td>2.8%</td></tr>
+<tr><td>6</td><td>109.32</td><td>30.35%</td><td>90.79%</td><td>4,326</td><td>3.3%</td></tr>
+<tr><td>7</td><td>99.59</td><td>27.65%</td><td>92.35%</td><td>5,047</td><td>3.9%</td></tr>
+<tr><td>8</td><td>91.36</td><td>25.37%</td><td>93.57%</td><td>5,768</td><td>4.4%</td></tr>
+<tr><td>9</td><td>84.59</td><td>23.49%</td><td>94.48%</td><td>6,489</td><td>5.0%</td></tr>
+<tr><td>10</td><td>79.13</td><td>21.97%</td><td>95.17%</td><td>7,210</td><td>5.6%</td></tr>
+<tr><td>15</td><td>60.57</td><td>16.82%</td><td>97.17%</td><td>10,815</td><td>8.3%</td></tr>
+<tr><td>20</td><td>49.56</td><td>13.76%</td><td>98.11%</td><td>14,420</td><td>11.1%</td></tr>
+<tr class="mark"><td>30</td><td>38.16</td><td>10.60%</td><td>98.88%</td><td>21,630</td><td>16.7%</td></tr>
+<tr><td>50</td><td>27.56</td><td>7.65%</td><td>99.41%</td><td>36,050</td><td>27.8%</td></tr>
+<tr><td>345 (full)</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>129,720</td><td>100.0%</td></tr>
+</tbody></table>
+
+<h2>3. The first eigenvector and the first PC score</h2>
+<figure>
+<img src="assets/image3/pc1.png" alt="image3 first eigenvector and first PC score">
+<figcaption>Left: the loadings of the first eigenvector u<sub>1</sub>, one per pixel column. Right:
+the first PC score z<sub>1</sub>, one per pixel row. Together they form the rank-1 approximation
+X<sup>(1)</sup> = z<sub>1</sub>u<sub>1</sub>'. The sign of an eigenvector is arbitrary; here it is
+oriented so that the loadings are mostly positive.</figcaption>
+</figure>
+<h3>Interpretation</h3>
+<p><b>The first eigenvector is a column-brightness profile.</b> Every loading has the
+same sign, rising from 0.020 at the left edge to a maximum of 0.078 around columns 255&ndash;265. It
+is not a picture of anything by itself; it is a weighting that says which pixel columns carry the
+most of the image's dominant brightness pattern (its correlation with the per-column energy
+&radic;&sum;x<sup>2</sup> is 0.91). The lowest loadings sit on the first few columns, the darkest
+part of the frame.</p>
+<p><b>The first PC score is the row-brightness profile.</b> z<sub>1</sub> correlates 0.996 with the
+row means of X, so it is essentially "how bright is this row of the photograph". It is most negative
+near row 122 &mdash; the dark head and body of the puppy &mdash; and most positive near row 361, the
+brightly lit sheet at the bottom of the frame. Their outer product z<sub>1</sub>u<sub>1</sub>' is
+therefore the horizontally-banded image you see in the k = 1 panel: the correct vertical brightness
+profile, with no horizontal detail at all.</p>
+
+<h2>4. How large does k need to be?</h2>
+<div class="verdict"><p style="margin:0"><b>k = 30.</b> At that rank the relative error is 10.6% and 98.9% of the variance is
+retained; the puppy, the fold of the sheet and the background objects all read correctly, with only
+mild vertical streaking left. It costs 30 &times; 721 = 21,630 numbers against 129,720 in the
+original, a 6&times; reduction. k = 10 is enough to recognise <i>what</i> the picture is but is
+clearly blurry, and k = 50 (7.7% error) is close to indistinguishable from the original if you want
+headroom &mdash; still only 28% of the original storage. Past roughly k = 180 the representation
+stops being a compression at all, since k(n + p) exceeds n &times; p.</p></div>
+
+</main>
+<footer class="site"><div class="inner">
+Built in R (<code>eigen()</code> + <code>norm()</code>); figures generated by
+<code>analysis/generate_site_assets.R</code>. Source:
+<a href="https://github.com/palashpawar/HW2">github.com/palashpawar/HW2</a>.
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>image4 &mdash; PCA image compression</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><div class="inner">
+<h1>PCA for Image Compression</h1>
+<p>SDS 365 &middot; Homework 2 &middot; Palash Pawar</p>
+<nav><a href="index.html">Method &amp; code</a><a href="image1.html">image 1</a><a href="image2.html">image 2</a><a href="image3.html">image 3</a><a href="image4.html" class="active">image 4</a><a href="mockup/index.html">App design</a><a href="shiny.html">Shiny app</a></nav>
+</div></header>
+<main>
+
+<h2>image 4 &mdash; a night scene (213 &times; 119)</h2>
+<p class="lead">A small, mostly dark photograph &mdash; a night-time scene in which the brightest object by
+far is an illuminated rectangular sign near the middle of the frame, with a couple of smaller lights
+above it. Also standardised to mean 0 and standard deviation 1.</p>
+<p><b>Size:</b> n = 213 rows &times; p = 119 columns &nbsp;&middot;&nbsp;
+<b>&#8214;X&#8214;<sub>F</sub></b> = 159.2 &nbsp;&middot;&nbsp;
+<b>Variance in PC1:</b> 40.5% &nbsp;&middot;&nbsp;
+<b>k for 95% / 99% of variance:</b> 11 / 28</p>
+
+<h2>1. The original and its first ten approximations</h2>
+<div class="grid wide">
+<div class="tile first"><img src="assets/image4/orig.png" alt="image4 original"><b>original</b></div>
+<div class="tile"><img src="assets/image4/k01.png" alt="image4 rank 1"><b>k = 1</b></div>
+<div class="tile"><img src="assets/image4/k02.png" alt="image4 rank 2"><b>k = 2</b></div>
+<div class="tile"><img src="assets/image4/k03.png" alt="image4 rank 3"><b>k = 3</b></div>
+<div class="tile"><img src="assets/image4/k04.png" alt="image4 rank 4"><b>k = 4</b></div>
+<div class="tile"><img src="assets/image4/k05.png" alt="image4 rank 5"><b>k = 5</b></div>
+<div class="tile"><img src="assets/image4/k06.png" alt="image4 rank 6"><b>k = 6</b></div>
+<div class="tile"><img src="assets/image4/k07.png" alt="image4 rank 7"><b>k = 7</b></div>
+<div class="tile"><img src="assets/image4/k08.png" alt="image4 rank 8"><b>k = 8</b></div>
+<div class="tile"><img src="assets/image4/k09.png" alt="image4 rank 9"><b>k = 9</b></div>
+<div class="tile"><img src="assets/image4/k10.png" alt="image4 rank 10"><b>k = 10</b></div>
+</div>
+<p>Because the image is dominated by a few bright objects on a dark background, the
+early approximations behave almost like a spotlight: k = 1&ndash;3 produce a smeared bright block
+where the sign is, and the surroundings arrive later. The sign becomes readable at about k = 10, the
+scene structure settles down by k = 15&ndash;20, and k = 30 is very close to the original apart from
+fine noise texture.</p>
+<h3>Beyond k = 10</h3>
+<div class="grid wide">
+<div class="tile first"><img src="assets/image4/orig.png" alt="image4 original"><b>original</b></div>
+<div class="tile"><img src="assets/image4/k15.png" alt="image4 rank 15"><b>k = 15</b></div>
+<div class="tile"><img src="assets/image4/k20.png" alt="image4 rank 20"><b>k = 20</b></div>
+<div class="tile"><img src="assets/image4/k30.png" alt="image4 rank 30"><b>k = 30</b></div>
+<div class="tile"><img src="assets/image4/k50.png" alt="image4 rank 50"><b>k = 50</b></div>
+</div>
+<p class="lead" style="font-size:14px">Grayscale mapping: for every panel of this image, black and
+white are pinned to the 2nd and 98th percentile of the <i>original</i> matrix, so all panels are
+directly comparable and a few extreme pixels cannot wash the rest out.</p>
+
+<h2>2. Approximation error against k</h2>
+<figure>
+<img src="assets/image4/error.png" alt="image4 approximation error versus k">
+<figcaption>Left: the Frobenius error &#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub> for every
+possible rank k = 1, &hellip;, 119. Right: the same error relative to &#8214;X&#8214;<sub>F</sub>
+on a log scale, with the ranks that reach 95%, 99% and 99.9% of the total variance marked.</figcaption>
+</figure>
+<p>The decay is steady rather than dramatic: 40.5% of the variance at k = 1, 94% at
+k = 10, 95% at k = 11, 99% at k = 28 and 99.9% at k = 65. This image has the flattest spectrum of
+the three non-noise images &mdash; there is genuine detail spread across a lot of components &mdash;
+and because p = 119 is small, the break-even rank where the compressed form stops being smaller than
+the original arrives early, at k &asymp; 76.</p>
+<table><thead><tr><th>k</th><th>&#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub></th><th>relative error</th><th>cumulative variance</th><th>numbers stored</th><th>vs. original</th></tr></thead><tbody>
+<tr><td>1</td><td>122.81</td><td>77.14%</td><td>40.50%</td><td>332</td><td>1.3%</td></tr>
+<tr><td>2</td><td>95.42</td><td>59.93%</td><td>64.08%</td><td>664</td><td>2.6%</td></tr>
+<tr><td>3</td><td>83.08</td><td>52.18%</td><td>72.77%</td><td>996</td><td>3.9%</td></tr>
+<tr><td>4</td><td>73.86</td><td>46.39%</td><td>78.48%</td><td>1,328</td><td>5.2%</td></tr>
+<tr><td>5</td><td>65.57</td><td>41.19%</td><td>83.04%</td><td>1,660</td><td>6.5%</td></tr>
+<tr><td>6</td><td>58.34</td><td>36.64%</td><td>86.57%</td><td>1,992</td><td>7.9%</td></tr>
+<tr><td>7</td><td>52.63</td><td>33.06%</td><td>89.07%</td><td>2,324</td><td>9.2%</td></tr>
+<tr><td>8</td><td>47.99</td><td>30.14%</td><td>90.91%</td><td>2,656</td><td>10.5%</td></tr>
+<tr><td>9</td><td>43.38</td><td>27.25%</td><td>92.57%</td><td>2,988</td><td>11.8%</td></tr>
+<tr><td>10</td><td>39.19</td><td>24.62%</td><td>93.94%</td><td>3,320</td><td>13.1%</td></tr>
+<tr><td>15</td><td>27.31</td><td>17.16%</td><td>97.06%</td><td>4,980</td><td>19.6%</td></tr>
+<tr class="mark"><td>20</td><td>21.18</td><td>13.30%</td><td>98.23%</td><td>6,640</td><td>26.2%</td></tr>
+<tr><td>30</td><td>14.56</td><td>9.14%</td><td>99.16%</td><td>9,960</td><td>39.3%</td></tr>
+<tr><td>50</td><td>7.99</td><td>5.02%</td><td>99.75%</td><td>16,600</td><td>65.5%</td></tr>
+<tr><td>119 (full)</td><td>0.00</td><td>0.00%</td><td>100.00%</td><td>25,347</td><td>100.0%</td></tr>
+</tbody></table>
+
+<h2>3. The first eigenvector and the first PC score</h2>
+<figure>
+<img src="assets/image4/pc1.png" alt="image4 first eigenvector and first PC score">
+<figcaption>Left: the loadings of the first eigenvector u<sub>1</sub>, one per pixel column. Right:
+the first PC score z<sub>1</sub>, one per pixel row. Together they form the rank-1 approximation
+X<sup>(1)</sup> = z<sub>1</sub>u<sub>1</sub>'. The sign of an eigenvector is arbitrary; here it is
+oriented so that the loadings are mostly positive.</figcaption>
+</figure>
+<h3>Interpretation</h3>
+<p><b>The first eigenvector locates the bright object horizontally.</b> u<sub>1</sub>
+has a large positive bump across columns 60&ndash;95 (peaking at 0.218 on column 85) and a negative
+dip across columns 25&ndash;50. It is a contrast pattern: the brightly lit right-of-centre band
+against the darker left band.</p>
+<p><b>The first PC score locates it vertically.</b> z<sub>1</sub> has a tall peak at rows
+140&ndash;155 &mdash; exactly where the illuminated sign sits &mdash; a secondary peak near row 60
+where the smaller lights are, and its most negative values in the dark bottom rows. The outer product
+of a column bump and a row peak is a bright rectangle, which is precisely what the k = 1 panel shows.
+So the first principal component of this image is, in effect, "the sign": with a single component
+PCA chooses to encode the one high-contrast object and leaves the rest of the scene grey. Its
+correlation with row means is 0.79, weaker than for image 3, because it is tracking a localised
+object rather than overall row brightness.</p>
+
+<h2>4. How large does k need to be?</h2>
+<div class="verdict"><p style="margin:0"><b>k = 20.</b> That gives a 13.3% relative error and 98.2% of the variance, and
+everything in the scene is identifiable with the sign clearly legible; it uses 20 &times; 332 = 6,640
+numbers versus 25,347, about a quarter of the original. k = 10 is acceptable if the only thing that
+matters is reading the sign, and k = 30 (9.1% error) is where the reconstruction stops looking
+degraded to me. Because this image is small, there is little room above that: past k &asymp; 76 the
+"compressed" version is bigger than the original.</p></div>
+
+</main>
+<footer class="site"><div class="inner">
+Built in R (<code>eigen()</code> + <code>norm()</code>); figures generated by
+<code>analysis/generate_site_assets.R</code>. Source:
+<a href="https://github.com/palashpawar/HW2">github.com/palashpawar/HW2</a>.
+</div></footer>
+</body>
+</html>

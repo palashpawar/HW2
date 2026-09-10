@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shiny app &mdash; PCA Image Compressor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><div class="inner">
+<h1>PCA for Image Compression</h1>
+<p>SDS 365 &middot; Homework 2 &middot; Palash Pawar</p>
+<nav><a href="index.html">Method &amp; code</a><a href="image1.html">image 1</a><a href="image2.html">image 2</a><a href="image3.html">image 3</a><a href="image4.html">image 4</a><a href="mockup/index.html">App design</a><a href="shiny.html" class="active">Shiny app</a></nav>
+</div></header>
+<main>
+
+<h2>The interactive app</h2>
+<p class="lead">A Shiny implementation of the <a href="mockup/index.html">design on the previous
+page</a>: upload an image, drag the rank slider, and watch the reconstruction and the error move
+together.</p>
+
+<div class="callout">
+<h3>Live app</h3>
+<p><a href="https://palashpawar.shinyapps.io/pca-image-compressor/">
+palashpawar.shinyapps.io/pca-image-compressor</a></p>
+<p style="margin-bottom:0">Or run it locally from the repository:
+<code>R -e 'shiny::runApp("shiny_app")'</code></p>
+</div>
+
+<h2>What it does</h2>
+<ul>
+<li><b>Upload</b> a <code>.jpg</code>, <code>.png</code> or <code>.csv</code> matrix (up to 12 MB).
+Colour photographs are converted to grayscale with the usual luminance weights
+(0.299R + 0.587G + 0.114B); a CSV is read as a numeric matrix exactly as it stands, so the four
+homework images can be dropped straight in.</li>
+<li><b>Choose k</b> with the slider, the three presets, or by clicking anywhere on the error curve.
+The presets target a relative error of 25%, 10% and 2% rather than a share of the variance &mdash;
+because the decomposition is uncentered, the first component alone already accounts for most of the
+"variance" of any all-positive image while still looking heavily blurred, so variance explained is a
+misleading dial here.</li>
+<li><b>Compare</b> the original and the rank-k reconstruction side by side at identical size, with
+both drawn using the same black/white mapping so that differences you see are real.</li>
+<li><b>Read the cost</b>: Frobenius error, relative error, variance kept, numbers stored, and size
+relative to the original &mdash; the last of these turns red once k is large enough that the
+"compressed" form is bigger than the image it came from.</li>
+<li><b>Download</b> the reconstruction as a PNG.</li>
+</ul>
+<p>Two things keep it responsive: the eigendecomposition is computed once per upload and cached, so
+moving the slider only costs one matrix multiplication, and uploads larger than 900 pixels a side
+are stride-subsampled before decomposition.</p>
+
+<h2>Source</h2>
+<p>The app calls the same <code>pca_compress()</code> / <code>pca_decompose()</code> code shown on
+the <a href="index.html">method page</a>; a copy lives in the app directory so that the deployment
+is self-contained.</p>
+<pre><code>## SDS 365 - Homework 2
+## PCA Image Compressor: upload an image, choose a rank k, compare the
+## rank-k reconstruction against the original.
+
+library(shiny)
+
+source(&quot;pca_compress.R&quot;)
+
+MAX_SIDE   &lt;- 900         # uploaded images are subsampled to at most this many pixels per side
+MAX_UPLOAD &lt;- 12          # MB
+options(shiny.maxRequestSize = MAX_UPLOAD * 1024^2)
+
+## ---------------------------------------------------------------- helpers
+
+## Read an upload into a numeric matrix. Photos are converted to grayscale
+## with the usual luminance weights; a CSV is taken as a matrix as-is.
+read_image_matrix &lt;- function(path, name) {
+  ext &lt;- tolower(tools::file_ext(name))
+  if (ext == &quot;csv&quot;) {
+    M &lt;- as.matrix(utils::read.csv(path))
+    if (!is.numeric(M)) stop(&quot;That CSV does not contain a purely numeric matrix.&quot;)
+    dimnames(M) &lt;- NULL
+    return(M)
+  }
+  arr &lt;- switch(ext,
+    &quot;jpg&quot;  = jpeg::readJPEG(path),
+    &quot;jpeg&quot; = jpeg::readJPEG(path),
+    &quot;png&quot;  = png::readPNG(path),
+    stop(&quot;Unsupported file type: .&quot;, ext))
+  if (length(dim(arr)) == 2) return(arr)
+  if (dim(arr)[3] &gt;= 3) {
+    return(0.299 * arr[, , 1] + 0.587 * arr[, , 2] + 0.114 * arr[, , 3])
+  }
+  arr[, , 1]
+}
+
+## Keep the eigendecomposition affordable: stride-subsample very large images.
+shrink &lt;- function(M, max_side = MAX_SIDE) {
+  f &lt;- max(1, ceiling(max(dim(M)) / max_side))
+  if (f == 1) return(M)
+  M[seq(1, nrow(M), by = f), seq(1, ncol(M), by = f), drop = FALSE]
+}
+
+## Draw a matrix as a grayscale image, using a fixed black/white mapping so
+## that the original and the reconstruction are directly comparable.
+draw &lt;- function(M, lim) {
+  S &lt;- pmin(pmax((M - lim[1]) / diff(lim), 0), 1)
+  op &lt;- par(mar = c(0, 0, 0, 0), bg = &quot;white&quot;); on.exit(par(op))
+  plot.new()
+  plot.window(c(0, 1), c(0, 1), asp = nrow(M) / ncol(M))
+  rasterImage(as.raster(S), 0, 0, 1, 1, interpolate = FALSE)
+}
+
+fmt_pct &lt;- function(x) sprintf(&quot;%.2f%%&quot;, 100 * x)
+
+## ---------------------------------------------------------------- ui
+
+ui &lt;- fluidPage(
+  title = &quot;PCA Image Compressor&quot;,
+  tags$head(tags$style(HTML(&quot;
+    body { font-family: -apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, Helvetica, Arial, sans-serif; }
+    .topbar { background:#1d4ed8; color:#fff; padding:14px 20px; border-radius:8px; margin-bottom:18px; }
+    .topbar h2 { margin:0; font-size:20px; font-weight:700; }
+    .topbar p  { margin:2px 0 0; font-size:12.5px; color:#c7d2fe; }
+    .step { font-weight:700; font-size:13px; margin:14px 0 6px; }
+    .step span { display:inline-block; width:18px; height:18px; border-radius:9px; background:#1d4ed8;
+                 color:#fff; text-align:center; font-size:11px; line-height:18px; margin-right:6px; }
+    .statrow { display:flex; justify-content:space-between; font-size:13px; padding:3px 0;
+               border-bottom:1px solid #f3f4f6; }
+    .statrow b { font-variant-numeric: tabular-nums; }
+    .good { color:#15803d; } .bad { color:#b91c1c; }
+    .panelhead { font-size:13px; font-weight:700; margin-bottom:4px; }
+    .panelhead span { font-weight:400; color:#9ca3af; }
+    .hint { font-size:12px; color:#6b7280; }
+    .imgbox { border:1px solid #e5e7eb; border-radius:6px; padding:4px; background:#fff; }
+    .imgbox.rec { border-color:#1d4ed8; }
+  &quot;))),
+
+  div(class = &quot;topbar&quot;,
+      h2(&quot;PCA Image Compressor&quot;),
+      p(&quot;Rebuild any image from its first k principal components&quot;)),
+
+  sidebarLayout(
+    sidebarPanel(
+      width = 4,
+      div(class = &quot;step&quot;, span(&quot;1&quot;), &quot;Upload an image&quot;),
+      fileInput(&quot;file&quot;, NULL, accept = c(&quot;.jpg&quot;, &quot;.jpeg&quot;, &quot;.png&quot;, &quot;.csv&quot;),
+                buttonLabel = &quot;Browse&quot;, placeholder = &quot;no file selected&quot;),
+      div(class = &quot;hint&quot;, sprintf(&quot;.jpg / .png / .csv matrix, up to %d MB. Colour images are
+          converted to grayscale; anything larger than %d pixels a side is subsampled so the
+          eigendecomposition stays quick.&quot;, MAX_UPLOAD, MAX_SIDE)),
+      uiOutput(&quot;filenote&quot;),
+
+      div(class = &quot;step&quot;, span(&quot;2&quot;), &quot;Choose the rank k&quot;),
+      sliderInput(&quot;k&quot;, NULL, min = 1, max = 100, value = 10, step = 1, width = &quot;100%&quot;),
+      div(class = &quot;hint&quot;, &quot;left = more compression, right = more detail&quot;),
+      br(),
+      div(class = &quot;hint&quot;, &quot;presets (target relative error 25% / 10% / 2%)&quot;),
+      div(actionButton(&quot;p_tiny&quot;, &quot;tiny&quot;, class = &quot;btn-sm&quot;),
+          actionButton(&quot;p_bal&quot;, &quot;balanced&quot;, class = &quot;btn-sm&quot;),
+          actionButton(&quot;p_exact&quot;, &quot;near-exact&quot;, class = &quot;btn-sm&quot;)),
+
+      hr(),
+      uiOutput(&quot;stats&quot;),
+      br(),
+      downloadButton(&quot;dl&quot;, &quot;Download compressed image&quot;, style = &quot;width:100%&quot;)
+    ),
+
+    mainPanel(
+      width = 8,
+      conditionalPanel(&quot;output.loaded != &#x27;yes&#x27;&quot;,
+        div(class = &quot;hint&quot;, style = &quot;padding:30px 0&quot;,
+            &quot;Upload an image to begin. No file handy? Any of the&quot;,
+            tags$code(&quot;HW2imagefiles/*.csv&quot;), &quot;matrices from the homework works,
+            and so does any photo on your machine.&quot;)),
+      conditionalPanel(&quot;output.loaded == &#x27;yes&#x27;&quot;,
+        fluidRow(
+          column(6, div(class = &quot;panelhead&quot;, &quot;Original &quot;, textOutput(&quot;dim_o&quot;, inline = TRUE)),
+                    div(class = &quot;imgbox&quot;, plotOutput(&quot;orig&quot;, height = &quot;330px&quot;))),
+          column(6, div(class = &quot;panelhead&quot;, textOutput(&quot;rec_head&quot;, inline = TRUE)),
+                    div(class = &quot;imgbox rec&quot;, plotOutput(&quot;rec&quot;, height = &quot;330px&quot;)))
+        ),
+        br(),
+        div(class = &quot;panelhead&quot;, &quot;Error against k &quot;, tags$span(&quot;- the red marker is where you are&quot;)),
+        plotOutput(&quot;curve&quot;, height = &quot;230px&quot;, click = &quot;curve_click&quot;),
+        div(class = &quot;hint&quot;, &quot;Click the curve to jump to that rank.&quot;)
+      )
+    )
+  )
+)
+
+## ---------------------------------------------------------------- server
+
+server &lt;- function(input, output, session) {
+
+  ## Read + decompose once per upload; every value of k reuses this.
+  img &lt;- reactive({
+    req(input$file)
+    M &lt;- tryCatch(shrink(read_image_matrix(input$file$datapath, input$file$name)),
+                  error = function(e) {
+                    showNotification(conditionMessage(e), type = &quot;error&quot;, duration = 8)
+                    NULL
+                  })
+    req(M)
+    if (nrow(M) &lt; 2 || ncol(M) &lt; 2) {
+      showNotification(&quot;That file is too small to decompose.&quot;, type = &quot;error&quot;)
+      return(NULL)
+    }
+    fit  &lt;- pca_decompose(M)
+    errs &lt;- sqrt(pmax(rev(cumsum(rev(c(fit$values, 0))))[-1], 0))   # ||X - X^(k)||_F for all k
+    cumv &lt;- cumsum(fit$values) / sum(fit$values)
+    list(M = M, fit = fit, errs = errs, cumv = cumv,
+         fro = norm(M, type = &quot;F&quot;),
+         lim = as.numeric(stats::quantile(M, c(0.02, 0.98))))
+  })
+
+  ## Smallest k whose relative error is at or below `tol`. Relative error is a
+  ## better handle than variance explained here: the images are not centered, so
+  ## the first component alone already accounts for most of the &quot;variance&quot; of any
+  ## all-positive image while still looking heavily blurred.
+  k_for_error &lt;- function(d, tol) {
+    hit &lt;- which(d$errs / d$fro &lt;= tol)
+    if (length(hit)) hit[1] else length(d$errs)
+  }
+
+  observeEvent(img(), {
+    d &lt;- img()
+    updateSliderInput(session, &quot;k&quot;, min = 1, max = ncol(d$M), value = k_for_error(d, 0.10))
+  })
+
+  preset &lt;- function(tol) {
+    d &lt;- req(img())
+    updateSliderInput(session, &quot;k&quot;, value = k_for_error(d, tol))
+  }
+  observeEvent(input$p_tiny,  preset(0.25))
+  observeEvent(input$p_bal,   preset(0.10))
+  observeEvent(input$p_exact, preset(0.02))
+
+  observeEvent(input$curve_click, {
+    d &lt;- req(img())
+    updateSliderInput(session, &quot;k&quot;, value = max(1, min(ncol(d$M), round(input$curve_click$x))))
+  })
+
+  k &lt;- reactive({
+    d &lt;- req(img())
+    max(1, min(as.integer(input$k), ncol(d$M)))
+  })
+
+  approx &lt;- reactive(pca_rank_k(req(img())$fit, k())$approx)
+
+  output$loaded &lt;- reactive(if (is.null(input$file)) &quot;no&quot; else &quot;yes&quot;)
+  outputOptions(output, &quot;loaded&quot;, suspendWhenHidden = FALSE)
+
+  output$filenote &lt;- renderUI({
+    d &lt;- req(img())
+    div(class = &quot;hint&quot;, style = &quot;margin-top:-6px&quot;,
+        sprintf(&quot;%s - using %d x %d = %s numbers&quot;, input$file$name,
+                nrow(d$M), ncol(d$M), format(length(d$M), big.mark = &quot;,&quot;)))
+  })
+
+  output$dim_o    &lt;- renderText(sprintf(&quot;(%d x %d)&quot;, nrow(req(img())$M), ncol(req(img())$M)))
+  output$rec_head &lt;- renderText(sprintf(&quot;Compressed - k = %d&quot;, k()))
+
+  output$orig &lt;- renderPlot(draw(req(img())$M, req(img())$lim))
+  output$rec  &lt;- renderPlot(draw(approx(), req(img())$lim))
+
+  output$stats &lt;- renderUI({
+    d &lt;- req(img()); kk &lt;- k()
+    n &lt;- nrow(d$M); p &lt;- ncol(d$M)
+    store &lt;- kk * (n + p); full &lt;- n * p
+    ratio &lt;- store / full
+    div(
+      div(class = &quot;statrow&quot;, span(&quot;rank k&quot;), tags$b(kk)),
+      div(class = &quot;statrow&quot;, span(&quot;Frobenius error&quot;), tags$b(sprintf(&quot;%.3f&quot;, d$errs[kk]))),
+      div(class = &quot;statrow&quot;, span(&quot;relative error&quot;), tags$b(fmt_pct(d$errs[kk] / d$fro))),
+      div(class = &quot;statrow&quot;, span(&quot;variance kept&quot;), tags$b(fmt_pct(d$cumv[kk]))),
+      div(class = &quot;statrow&quot;, span(&quot;numbers stored&quot;), tags$b(format(store, big.mark = &quot;,&quot;))),
+      div(class = &quot;statrow&quot;, span(&quot;size vs original&quot;),
+          tags$b(class = if (ratio &lt;= 1) &quot;good&quot; else &quot;bad&quot;, fmt_pct(ratio)))
+    )
+  })
+
+  output$curve &lt;- renderPlot({
+    d &lt;- req(img()); kk &lt;- k(); p &lt;- ncol(d$M)
+    rel &lt;- 100 * d$errs / d$fro
+    op &lt;- par(mar = c(4, 4.4, 0.6, 1)); on.exit(par(op))
+    plot(seq_len(p), rel, type = &quot;l&quot;, lwd = 2, col = &quot;#1d4ed8&quot;,
+         xlab = &quot;rank k&quot;, ylab = &quot;relative error (%)&quot;)
+    grid(col = &quot;#eef0f3&quot;)
+    abline(v = kk, col = &quot;#9ca3af&quot;, lty = 2)
+    points(kk, rel[kk], pch = 19, col = &quot;#dc2626&quot;, cex = 1.2)
+  })
+
+  output$dl &lt;- downloadHandler(
+    filename = function() {
+      base &lt;- tools::file_path_sans_ext(basename(input$file$name))
+      sprintf(&quot;%s_pca_k%d.png&quot;, base, k())
+    },
+    content = function(file) {
+      d &lt;- req(img())
+      S &lt;- pmin(pmax((approx() - d$lim[1]) / diff(d$lim), 0), 1)
+      png::writePNG(S, file)
+    }
+  )
+}
+
+shinyApp(ui, server)
+</code></pre>
+
+<h2>Deploying it</h2>
+<pre><code>install.packages("rsconnect")
+rsconnect::setAccountInfo(name = "&lt;account&gt;", token = "&lt;token&gt;", secret = "&lt;secret&gt;")
+rsconnect::deployApp("shiny_app", appName = "pca-image-compressor")</code></pre>
+
+</main>
+<footer class="site"><div class="inner">
+Built in R (<code>eigen()</code> + <code>norm()</code>); figures generated by
+<code>analysis/generate_site_assets.R</code>. Source:
+<a href="https://github.com/palashpawar/HW2">github.com/palashpawar/HW2</a>.
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App design mockup &mdash; PCA Image Compressor</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site"><div class="inner">
+<h1>PCA for Image Compression</h1>
+<p>SDS 365 &middot; Homework 2 &middot; Palash Pawar</p>
+<nav><a href="../index.html">Method &amp; code</a><a href="../image1.html">image 1</a><a href="../image2.html">image 2</a><a href="../image3.html">image 3</a><a href="../image4.html">image 4</a><a href="../mockup/index.html" class="active">App design</a><a href="../shiny.html">Shiny app</a></nav>
+</div></header>
+<main>
+
+<h2>Design: an interactive PCA compression app</h2>
+<p class="lead">This page is the design half of the assignment: what an app should look like that
+lets somebody upload an arbitrary image, choose a compression level k, and see the compressed
+version next to the original. The working implementation is
+<a href="../shiny.html">here</a>.</p>
+
+<figure>
+<img src="mockup.svg" alt="Mockup of the PCA Image Compressor app" style="width:100%">
+<figcaption>Mockup of the proposed layout. Left: a three-step control column. Right: the original and
+the rank-k reconstruction side by side, with the rank slider directly underneath them and the error
+curve below that.</figcaption>
+</figure>
+
+<h2>What the app has to do</h2>
+<ol>
+<li>Take an arbitrary image from the user (a photo, or a raw matrix as CSV).</li>
+<li>Let them choose the amount of compression, i.e. the rank k.</li>
+<li>Show the compressed image next to the original so the two can be compared directly.</li>
+</ol>
+
+<h2>How I would want it to look</h2>
+<p>The thing I would actually be doing in this app is sliding k up and down and watching what breaks.
+Everything in the layout follows from that: the slider and the two images have to be visible at the
+same time, and moving the slider must not move anything else on the screen.</p>
+
+<h3>A narrow control column on the left, numbered 1&ndash;2&ndash;3</h3>
+<p>Upload sits at the top left, because it is the only thing you can do on a blank app and the top
+left is where you start reading. It is a drop zone rather than a bare "Choose file" button, with the
+accepted formats and the size limit written underneath so that a rejected file is never a surprise;
+once a file is loaded the zone collapses to a one-line summary (<code>puppy.jpg &middot; 376 &times;
+345</code>) with an &times; to clear it, so it stops taking up space you now need for the images.</p>
+<p>Directly below it is the rank control, labelled <i>more compression &harr; more detail</i> rather
+than just "k" &mdash; the underlying number matters to somebody who has taken this course and to
+nobody else, so the number is shown in a pill on the handle while the axis is described in plain
+words. The three preset chips (<i>tiny</i>, <i>balanced</i>, <i>near-exact</i>) map to fixed fractions
+of the variance, which gives a first-time user a sensible starting point without having to understand
+what an eigenvalue is.</p>
+
+<h3>The numbers underneath, not in a separate tab</h3>
+<p>Relative error, variance kept, numbers stored and size relative to the original sit at the bottom
+of the same column, in a fixed order so they can be read as a dial rather than as text: you learn
+where "12.4%" lives and then just watch it move. Size-vs-original is coloured, because that is the
+only one with a right answer &mdash; it is the payoff of the whole exercise, and it should go red
+once k is large enough that the "compressed" form is bigger than the original.</p>
+
+<h3>The two images side by side, same size, never moving</h3>
+<p>Original on the left, reconstruction on the right, identical dimensions, with the header of the
+right-hand panel carrying the current k so a screenshot is self-documenting. Both panels keep a fixed
+frame regardless of the aspect ratio of the upload, so nothing reflows while the slider moves &mdash;
+reflow is what makes this kind of comparison tool unusable. On a narrow screen they stack vertically
+instead of shrinking, and I would add a drag-to-reveal split view on mobile, since side-by-side stops
+working below about 700 px.</p>
+
+<h3>A second copy of the slider directly under the images</h3>
+<p>This is deliberate duplication. The interesting interaction is "look at the picture, nudge k, look
+again", and that should not require moving your eyes and cursor back to the sidebar every time. The
+two sliders are the same control and stay in sync.</p>
+
+<h3>The error curve at the bottom, with a marker showing where you are</h3>
+<p>The curve is what turns the app from a toy into something explanatory: it shows that the first few
+components buy almost everything and the rest is a long tail, and the red marker tells you whether
+you are on the steep part or wasting storage on the flat part. Clicking the curve should set k, which
+makes "find the elbow" a single gesture.</p>
+
+<h3>Small things I would insist on</h3>
+<ul>
+<li>A download button for the reconstruction &mdash; otherwise the result cannot leave the app.</li>
+<li>The compressed panel updates while the slider is dragged, not only on release; for a large image
+that means debouncing the redraw rather than recomputing the eigendecomposition on every pixel of
+travel (it only has to be computed once per upload).</li>
+<li>Colour images should be handled by compressing each channel separately, but the default view stays
+grayscale so that what is on screen is exactly the matrix being decomposed.</li>
+<li>An optional third panel showing the residual |X &minus; X<sup>(k)</sup>|, which is where the
+missing detail actually went &mdash; useful, but off by default because it needs explaining.</li>
+</ul>
+
+</main>
+<footer class="site"><div class="inner">
+Built in R (<code>eigen()</code> + <code>norm()</code>); figures generated by
+<code>analysis/generate_site_assets.R</code>. Source:
+<a href="https://github.com/palashpawar/HW2">github.com/palashpawar/HW2</a>.
+</div></footer>
+</body>
+</html>

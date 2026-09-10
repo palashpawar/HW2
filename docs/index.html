@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCA for Image Compression &mdash; method and code</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><div class="inner">
+<h1>PCA for Image Compression</h1>
+<p>SDS 365 &middot; Homework 2 &middot; Palash Pawar</p>
+<nav><a href="index.html" class="active">Method &amp; code</a><a href="image1.html">image 1</a><a href="image2.html">image 2</a><a href="image3.html">image 3</a><a href="image4.html">image 4</a><a href="mockup/index.html">App design</a><a href="shiny.html">Shiny app</a></nav>
+</div></header>
+<main>
+
+<p class="lead">Every image on this site is a numeric matrix <code>X</code> that has been rebuilt from
+just its first few principal components. The four images come from the course Canvas page as CSV
+matrices; each page below works through one of them.</p>
+
+<h2>The idea</h2>
+<p>Let <code>V = X'X</code> and take its eigendecomposition <code>V = U&Lambda;U'</code>. Because
+<code>U</code> is orthonormal, <code>X = XUU'</code>, so with the principal component scores
+<code>Z = XU</code> we get the exact identity <code>X = ZU'</code>. Truncating that sum after
+<code>k</code> terms gives the <b>rank-k approximation</b></p>
+<div class="math">X<sup>(k)</sup> = z<sub>1</sub>u<sub>1</sub>' + z<sub>2</sub>u<sub>2</sub>' + &hellip; + z<sub>k</sub>u<sub>k</sub>'</div>
+<p>and the quality of that approximation is measured by the Frobenius norm of what is left over,
+<code>Error(k) = &#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub></code>. Storing
+<code>X<sup>(k)</sup></code> only requires the k score columns and k eigenvectors, i.e.
+<code>k(n + p)</code> numbers instead of <code>n &times; p</code> &mdash; that is where the
+compression comes from.</p>
+<p>Two facts worth keeping in mind while reading the pages:</p>
+<ul>
+<li><b>No centering.</b> The identity <code>X = ZU'</code> only holds if the columns are not
+centered, so the eigendecomposition is taken of <code>X'X</code> directly (in R this is
+<code>prcomp(X, center = FALSE)</code>, not the default).</li>
+<li><b>The error is set by the discarded eigenvalues.</b> Because the rank-1 pieces are mutually
+orthogonal, <code>&#8214;X &minus; X<sup>(k)</sup>&#8214;<sub>F</sub><sup>2</sup> =
+&lambda;<sub>k+1</sub> + &hellip; + &lambda;<sub>p</sub></code>. The script checks this identity
+against the norms it computes directly; they agree to ~1e&minus;11.</li>
+</ul>
+
+<h2>The compression function</h2>
+<p>This is the function the assignment asks for: it takes an image matrix and a rank
+<code>k</code>, and returns the rank-k approximation together with its Frobenius error.</p>
+<pre><code>## SDS 365 - Homework 2
+## PCA-based image compression
+
+## Rank-k PCA approximation of an image matrix.
+##
+## X: an n x p numeric matrix (the image)
+## k: rank of the approximation (1 &lt;= k &lt;= p)
+##
+## Returns a list with
+##   approx: the rank-k approximation X^(k) = z_1 u_1&#x27; + ... + z_k u_k&#x27;
+##   error : ||X - X^(k)||_F, the Frobenius norm of the approximation error
+pca_compress &lt;- function(X, k) {
+  X &lt;- as.matrix(X)
+  p &lt;- ncol(X)
+
+  if (!is.numeric(k) || length(k) != 1 || k &lt; 1 || k &gt; p) {
+    stop(&quot;k must be a single number between 1 and ncol(X) = &quot;, p)
+  }
+
+  V &lt;- crossprod(X)                  # V = X&#x27;X  (p x p)
+  eig &lt;- eigen(V, symmetric = TRUE)  # V = U Lambda U&#x27;
+  U &lt;- eig$vectors                   # p x p eigenvectors, decreasing eigenvalue
+  Z &lt;- X %*% U                       # n x p principal component scores
+
+  idx &lt;- seq_len(k)
+  Xk &lt;- Z[, idx, drop = FALSE] %*% t(U[, idx, drop = FALSE])
+
+  list(approx = Xk, error = norm(X - Xk, type = &quot;F&quot;))
+}
+
+## Same decomposition, but computed once so that many values of k can be
+## evaluated without repeating the eigendecomposition. Used by the analysis
+## script and the Shiny app; pca_compress() above is the stand-alone answer.
+pca_decompose &lt;- function(X) {
+  X &lt;- as.matrix(X)
+  eig &lt;- eigen(crossprod(X), symmetric = TRUE)
+  list(X = X, U = eig$vectors, Z = X %*% eig$vectors, values = eig$values)
+}
+
+pca_rank_k &lt;- function(fit, k) {
+  idx &lt;- seq_len(k)
+  Xk &lt;- fit$Z[, idx, drop = FALSE] %*% t(fit$U[, idx, drop = FALSE])
+  list(approx = Xk, error = norm(fit$X - Xk, type = &quot;F&quot;))
+}
+</code></pre>
+<p>Usage:</p>
+<pre><code>X   &lt;- as.matrix(read.csv("HW2imagefiles/image3.csv"))
+out &lt;- pca_compress(X, k = 30)
+
+out$error          # 38.16  =  ||X - X^(30)||_F
+dim(out$approx)    # 376 345, the compressed image</code></pre>
+<p><code>pca_decompose()</code> / <code>pca_rank_k()</code> in the same file are a convenience:
+they do the eigendecomposition once so that hundreds of values of <code>k</code> can be evaluated
+without repeating it. They return exactly the same numbers as <code>pca_compress()</code>, which
+the analysis script verifies at several ranks.</p>
+
+<h2>Results at a glance</h2>
+<table><thead><tr><th>image</th><th>size</th><th>&#8214;X&#8214;<sub>F</sub></th>
+<th>variance at k=1</th><th>k for 95%</th><th>k for 99%</th><th>my pick</th>
+<th>rel. error there</th><th>variance there</th></tr></thead>
+<tbody><tr><td><a href="image1.html">image1</a></td><td>1000 &times; 100</td><td>705.5</td><td>80.2%</td><td>63</td><td>91</td><td><b>1</b></td><td>44.5%</td><td>80.19%</td></tr><tr><td><a href="image2.html">image2</a></td><td>1000 &times; 100</td><td>37,538.8</td><td>100.0%</td><td>1</td><td>1</td><td><b>1</b></td><td>0.0%</td><td>100.00%</td></tr><tr><td><a href="image3.html">image3</a></td><td>376 &times; 345</td><td>360.2</td><td>61.8%</td><td>10</td><td>33</td><td><b>30</b></td><td>10.6%</td><td>98.88%</td></tr><tr><td><a href="image4.html">image4</a></td><td>213 &times; 119</td><td>159.2</td><td>40.5%</td><td>11</td><td>28</td><td><b>20</b></td><td>13.3%</td><td>98.23%</td></tr></tbody></table>
+<p>The four images behave completely differently, which is the interesting part: two of them are
+essentially rank-1, one is a photograph that needs a few dozen components, and one is mostly noise
+that PCA cannot compress at all.</p>
+
+<div class="cards">
+<a class="card" href="image1.html"><h3>image 1 &rarr;</h3><p>Noise plus one bright column. PC1 finds the column; nothing else is compressible.</p></a>
+<a class="card" href="image2.html"><h3>image 2 &rarr;</h3><p>Exactly rank 1: every row is the same left-to-right ramp, rescaled.</p></a>
+<a class="card" href="image3.html"><h3>image 3 &rarr;</h3><p>A photograph of a puppy. Recognisable by k = 10, convincing by k = 30.</p></a>
+<a class="card" href="image4.html"><h3>image 4 &rarr;</h3><p>A dark night scene with one bright sign. PC1 is that sign.</p></a>
+<a class="card" href="mockup/index.html"><h3>App design &rarr;</h3><p>Mockup and layout rationale for an interactive compression app.</p></a>
+<a class="card" href="shiny.html"><h3>Shiny app &rarr;</h3><p>The working implementation: upload an image, pick k, compare.</p></a>
+</div>
+
+<div class="callout">
+<h3>Reproducing this</h3>
+<p>From the repository root:</p>
+<pre><code>Rscript analysis/generate_site_assets.R   # rebuilds every figure in docs/assets
+R -e 'shiny::runApp("shiny_app")'         # runs the interactive app locally</code></pre>
+</div>
+
+</main>
+<footer class="site"><div class="inner">
+Built in R (<code>eigen()</code> + <code>norm()</code>); figures generated by
+<code>analysis/generate_site_assets.R</code>. Source:
+<a href="https://github.com/palashpawar/HW2">github.com/palashpawar/HW2</a>.
+</div></footer>
+</body>
+</html>
